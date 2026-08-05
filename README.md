@@ -21,6 +21,11 @@ underneath.
 Requires macOS. A notch is not required — without one the sliver falls back to a
 fixed width and sits in the menu-bar row all the same.
 
+https://github.com/user-attachments/assets/e7ade964-9005-4d3f-bc98-13ea54699b18
+
+<img width="672" height="455" alt="Screenshot 2026-08-05 at 12 45 07 PM" src="https://github.com/user-attachments/assets/ad31c06b-a41a-419a-9b5d-bba7a71082a1" />
+
+
 ## Install
 
 You need [Rust](https://rustup.rs) (`brew install rustup && rustup default stable`).
