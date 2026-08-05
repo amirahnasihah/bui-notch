@@ -1,174 +1,353 @@
-# standard-repo
+# bui-notch
 
-GitHub template for project scaffolding: CI/CD, release automation, issue workflow, and multi-provider deployments.
+A Dynamic Island for the Mac notch.
 
-## Quick start
+A black panel hangs from the top of your screen and merges with the physical
+notch. Collapsed it fills the menu-bar row either side of the notch with a few
+glanceable readings — Claude session usage, to-dos due today, commits today, live
+agents, and how long until the session limit resets. Rest the cursor on it and it
+unfurls into a small panel; move away and it shrinks back. Click it to hold it
+open, and a green mark appears to say it's held.
 
-1. **Use this template** → create a new repo from `amirahnasihah/standard-repo`.
-2. Copy `.env.example` → `.env` and fill in values locally.
-3. When ready to deploy, copy from [`.github/examples/`](.github/examples/) (workflows + infra) — see [Deployment](#deployment-optional).
-4. Add **GitHub secrets** when you enable deploy (see [Required secrets](#required-secrets)).
-5. Create GitHub **environments** `staging` and `production` with optional approval gates.
-6. Apply **rulesets** (see [Rulesets](#rulesets)) — protect `main`, `release`, and block secret commits.
+It deliberately shows **no clock and no battery**: macOS already puts both in the
+menu bar a few hundred points to the right, and two bare percentages side by side
+can't be told apart. The Day card inside the panel has both, along with the date
+and how much of the day is gone.
 
-## Branch model
+It draws *over* the menu bar, follows you across Spaces, and lets clicks through
+everywhere except the sliver itself, so it never gets in the way of the menu bar
+underneath.
 
-```
-feature branches  →  main (staging)  →  release (production)
-     ↑                      ↑                    ↑
-  PR from issue           CI only (no deploy     release PR + tag
-                          until you copy from
-                          examples/)
-```
+Requires macOS. A notch is not required — without one the sliver falls back to a
+fixed width and sits in the menu-bar row all the same.
 
-| Branch | Purpose |
-|--------|---------|
-| `main` | Integration branch. CI runs on push/PR. |
-| `release` | Production-ready code. Release PRs merge here; tags published on merge. |
-| `addition/*`, `fix/*`, etc. | Feature branches created automatically when an issue is assigned. |
+## Install
 
-## Workflow overview
-
-| Workflow | Trigger | What it does |
-|----------|---------|--------------|
-| [CI](.github/workflows/ci.yml) | Push/PR to `main`, `develop` | Lint, test, build (Bun/Node if `package.json` exists) |
-| [Run Tests](.github/workflows/run-tests.yml) | Review requested / `ci-testing` label | Extra test run on demand |
-| [Start Pull Request](.github/workflows/start-pull-request.yml) | Issue assigned | Creates branch + draft PR from issue |
-| [Prepare Release](.github/workflows/prepare-release.yml) | Push to `main` | Opens `main` → `release` PR via git-pr-release |
-| [Release](.github/workflows/release.yml) | Release PR merged | Publishes CalVer GitHub Release |
-| [Apply Rulesets](.github/workflows/apply-rulesets.yml) | Manual | Sync rulesets from JSON to GitHub |
-
-### Deployment (optional)
-
-Not active by default. Copy from [`.github/examples/workflows/`](.github/examples/workflows/) when you have an app + host:
-
-| Example workflow | Trigger (once copied) | What it does |
-|------------------|----------------------|--------------|
-| [deploy-cloudflare.yml](.github/examples/workflows/deploy-cloudflare.yml) | Push `main`, release, manual | Wrangler deploy |
-| [deploy-vercel.yml](.github/examples/workflows/deploy-vercel.yml) | Push `main`, PR, release, manual | Vercel deploy + PR preview |
-| [deploy-hetzner.yml](.github/examples/workflows/deploy-hetzner.yml) | Push `main`, release, manual | Docker → SSH deploy |
-
-→ [`.github/examples/README.md`](.github/examples/README.md)
-
-## Rulesets
-
-Rulesets are **not** auto-applied from files (unlike Actions workflows). JSON definitions live in [`.github/rulesets/`](.github/rulesets/) and are reusable in three ways:
-
-| Method | Best for |
-|--------|----------|
-| **Org rulesets** (`org/*.json`) | One policy for all repos (`~ALL` or name patterns) |
-| **Repo rulesets** (`repo/*.json`) | Single-repo projects from this template |
-| **Import / script** | UI import or `./scripts/apply-rulesets.sh repo` |
+You need [Rust](https://rustup.rs) (`brew install rustup && rustup default stable`).
 
 ```bash
-./scripts/apply-rulesets.sh repo --evaluate   # test without blocking
-./scripts/apply-rulesets.sh repo              # apply (upserts by name)
-./scripts/apply-rulesets.sh org               # org-wide (org admin required)
+git clone https://github.com/amirahnasihah/bui-notch
+cd bui-notch
+cargo install --path crates/notch-app   # the panel
+cargo install --path crates/notch       # the CLI that configures it
 ```
 
-After applying, add **GitHub Actions** to each branch ruleset's bypass list so release/PR automation can push. Full details: [`.github/rulesets/README.md`](.github/rulesets/README.md).
 
-## Release flow (CalVer)
 
-Releases use **Calendar Versioning** in Malaysia timezone (`Asia/Kuala_Lumpur`):
+### Check it installed
 
-```
-YYYY.MM.weekN.releaseM
+```bash
+notch --version
 ```
 
-Example: `2026.05.week4.release1` → release name `2026-05 Week 4（Release No.1）`
-
-1. Merge PRs into `main`.
-2. **Prepare Release** opens a PR from `main` → `release` (label: `release-candidate`).
-3. Review and merge the release PR.
-4. **Release** workflow publishes the GitHub Release and tag.
-5. Production deploy runs when you copy deploy workflows from `examples/` and merge a release.
-
-## Deployment (optional)
-
-Deploy workflows live in [`.github/examples/workflows/`](.github/examples/workflows/) and **do not run on push** until copied to `.github/workflows/`. See [`.github/examples/README.md`](.github/examples/README.md).
-
-## Issue → PR flow
-
-1. Open an issue using a template (`addition`, `fix`, `modification`, etc.).
-2. Assign yourself (or a teammate).
-3. **Start Pull Request** creates a branch like `fix/i42-20260523-1430` and opens a PR.
-4. Fill in the PR checklist and attach evidence before requesting review.
-
-Issue types `idea`, `epic`, and `agenda` are excluded from auto-PR creation.
-
-## Required secrets
-
-Set in **Settings → Secrets and variables → Actions** (only when deploy workflows are enabled).
-
-### Cloudflare (`examples/workflows/deploy-cloudflare.yml`)
-
-| Secret | Description |
-|--------|-------------|
-| `CLOUDFLARE_API_TOKEN` | API token with Workers/Pages deploy scope |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID |
-
-### Vercel (`examples/workflows/deploy-vercel.yml`)
-
-| Secret | Description |
-|--------|-------------|
-| `VERCEL_TOKEN` | Vercel personal/team token |
-| `VERCEL_ORG_ID` | Team or user ID |
-| `VERCEL_PROJECT_ID` | Project ID |
-
-### Hetzner / VPS (`examples/workflows/deploy-hetzner.yml`)
-
-| Secret | Description |
-|--------|-------------|
-| `SSH_PRIVATE_KEY` | Private key for deploy user |
-| `DEPLOY_HOST` | Server IP or hostname |
-| `DEPLOY_USER` | SSH username |
-| `DEPLOY_PORT` | Optional — default `22` |
-| `DEPLOY_PATH` | Optional — default `/opt/app` |
-
-Images are pushed to `ghcr.io/<owner>/app:<sha>` using `GITHUB_TOKEN`.
-
-For **private** GHCR packages, add a `GHCR_PULL_TOKEN` secret (PAT with `read:packages`) so the server can pull the image. Alternatively, make the package public under GitHub Packages settings.
-
-### CI security (optional)
-
-| Secret | Description |
-|--------|-------------|
-| `SNYK_TOKEN` | Snyk vulnerability scanning |
-
-## GitHub environments
-
-Create two environments under **Settings → Environments**:
-
-- **staging** — auto-deploy from `main`
-- **production** — deploy on release; add required reviewers for safety
-
-Deploy workflows reference these environment names when copied from `examples/`.
-
-## Project structure
-
 ```
-.
-├── .github/
-│   ├── workflows/          # Active CI, release, automation
-│   ├── examples/           # Optional deploy workflows + infra
-│   ├── rulesets/
-│   ├── ISSUE_TEMPLATE/
-│   └── release-drafter-config.yml
-├── scripts/
-│   └── apply-rulesets.sh
-├── .env.example
-└── .gitignore
+notch 0.1.0
 ```
 
-## Customization checklist
+If that says `command not found`, the install didn't land on your `PATH` —
+`cargo install` puts binaries in `~/.cargo/bin`, so make sure that's on it.
 
-- [ ] Update Discussions URL in `.github/ISSUE_TEMPLATE/config.yml`
-- [ ] Add `package.json` (or remove Bun-specific CI steps)
-- [ ] Configure GitHub environments + secrets (when using deploy)
-- [ ] Apply rulesets (UI import or `./scripts/apply-rulesets.sh repo`)
-- [ ] Copy deploy from `.github/examples/` when you have an app + host (optional)
+Then `notch` on its own prints what's switched on, and every command there is:
 
-## License
+```bash
+notch
+```
 
-Apache 2.0 — see [LICENSE](LICENSE).
+```
+notch HUD  on
+
+  day       on   Clock, date, day progress, battery
+  usage     on   Claude session + weekly limits
+  git       on   GitHub contributions
+  sessions  on   Live Claude Code sessions
+  todos     on   To-do briefing
+
+  opens after 600ms of hover
+
+notch on | off | toggle
+notch delay <ms>
+notch module <name> [on|off|toggle]
+notch pin [on|off|toggle]
+notch todos [path|schema|clear]
+notch attention [show|clear]
+notch doctor
+
+Click the sliver to pin the panel open, or use `notch pin`.
+```
+
+On a fresh install only `day` is on — see [Use it](#use-it) for turning the rest on.
+
+### Start it
+
+Install the LaunchAgent — this is the normal way to run it:
+
+```bash
+./scripts/install-launchagent.sh
+```
+
+That starts the panel now, again at every login, and brings it back if it crashes.
+Logs go to `~/Library/Logs/notch-app.log`; remove it with `--uninstall`.
+
+The panel appears immediately. There is no dock icon and no menu-bar icon — the
+panel is the whole interface.
+
+You can run `notch-app` directly instead, which holds that terminal until `Ctrl-C`.
+That's handy while hacking on it; for daily use the LaunchAgent is the one you want.
+
+### `notch-app` and `notch` are two different things
+
+This is the part that trips people up:
+
+| | |
+| --- | --- |
+| **`notch-app`** | The **process**. Something has to be running or there is nothing to draw. Once the LaunchAgent is installed, **you never run this again.** |
+| **`notch`** | The **CLI**. It writes settings that the running process reads. This is what you use day to day. |
+
+So showing and hiding the panel is the CLI's job, not the app's:
+
+```bash
+notch off      # hide it — the process keeps running
+notch on       # show it again
+notch toggle
+```
+
+A change lands within about five seconds. Nothing needs restarting, and there is
+never any need to start `notch-app` again to make a setting take effect.
+
+Two consequences worth knowing:
+
+* **Running `notch-app` while one is already running gives you two panels**, stacked
+  on the same notch. There is no single-instance guard yet. If it ever looks
+  doubled, `pgrep -x notch-app` should print exactly one line.
+* **`notch-app` takes no arguments.** Tauri ignores them, so `notch-app --version`
+  quietly launches the panel instead of printing a version. Use `notch --version`.
+
+## Use it
+
+Hover the notch to open the panel. Five tabs:
+
+- **Overview** — Claude usage, the clock/date/day progress/battery, a
+contributions strip, and the newest few coding sessions.
+- **To-do** — today, this week, in progress, done.
+- **Usage** — session and weekly limits in detail, plus one row per reset window.
+- **Sessions** — every live Claude Code session.
+- **Git** — the full 90-day contribution grid, totals, and recent pushes.
+
+Rest the cursor on a tab pill to switch to it (or click it). Click the sliver to
+pin the panel open so it stops following your cursor; click again to release it,
+or use `notch pin`.
+
+Only the clock/battery module is on out of the box — everything else needs
+something you may not have, so it ships off. Turn on what you want:
+
+```bash
+notch module usage on      # needs a Claude Code OAuth token
+notch module git on        # needs `gh`, authenticated
+notch module sessions on   # needs ~/.claude/projects
+notch module todos on      # needs a producer writing todos.json
+```
+
+
+
+## Is it working?
+
+```bash
+notch --version
+notch doctor         # every integration, and what to run about each one
+notch doctor --json  # same, for scripts (exits 1 on a real failure)
+```
+
+Most of what the modules need lives outside this app — a running panel, the
+LaunchAgent, a token, `gh` on a PATH launchd doesn't provide, a producer writing a
+file. Each fails quietly and separately, so a blank card looks the same whichever
+one it was. `doctor` asks all of them at once, skips the checks belonging to
+switched-off modules, and names the command that fixes each failure.
+
+## When an agent needs you
+
+The panel is otherwise passive: it shows what is happening only once you go and
+look. The exception is the **attention interrupt** — when a Claude Code session
+stops and waits for you, the panel opens by itself, says which session and what it
+is asking, holds about twelve seconds, and closes again.
+
+```bash
+cargo install --path crates/notch
+./scripts/install-claude-hook.sh   # wires Claude Code's Notification hook
+```
+
+Restart any running Claude Code session afterwards. Check it with `notch doctor`,
+or `notch attention show` while something is actually waiting.
+
+This uses Claude Code's `Notification` hook rather than watching transcripts,
+because a transcript cannot tell the difference: a tool call awaiting *permission*
+and one that is simply *running* are the same thing on disk — an assistant
+`tool_use` with no result yet. Guessing from elapsed time would pop the panel open
+every time a build took half a minute.
+
+Three properties it is built to have:
+
+- **It never takes focus.** The panel is never the key window, and opening it for an
+interrupt does not change that, so whatever you were typing into keeps the
+keyboard.
+- **It closes itself.** A panel that opens unprompted and then stays open is worse
+than one that never opens.
+- **It has no off switch.** Every other module can be turned off; this cannot,
+because an interrupt you have to remember to enable is not an interrupt.
+
+The banner is read-only. bui could answer the agent by typing the chosen digit into
+its terminal pane; that needs tmux or zellij plumbing and a pane registry, and is
+deliberately not here. You get told what is being asked, and you answer in the
+terminal yourself.
+
+## The to-do briefing
+
+The `todos` module renders a JSON file and nothing more. It holds no credentials and
+never talks to Slack, Gmail, or any tracker — so this app never has to ask anyone for
+access to their messages.
+
+Something else writes that file. Shipped here is `/todo-brief`, a Claude Code
+command that reads **Slack and Gmail** through the connectors your own session
+already has, picks out the week's action items, sorts them into today / this week /
+in progress / done, and writes the briefing:
+
+```bash
+notch module todos on
+# then, in a Claude Code session with the Slack and Gmail connectors:
+/todo-brief
+```
+
+Any producer will do, as long as it writes the right shape in the right place:
+
+```bash
+notch todos           # print the briefing, and how old it is
+notch todos path      # the file to write
+notch todos schema    # an example document to copy
+notch todos clear      # delete it
+```
+
+
+
+### It cannot be scheduled
+
+`/todo-brief` only works in a session that **actually has the connectors**. A
+headless `claude -p` has no Slack or Gmail tools at all, so cron cannot drive it —
+it would either fail or, worse, invent items to fill the sections. The command
+checks for the tools first and refuses rather than guessing.
+
+This is a limitation of the design, not a bug: keeping the credentials out of the
+HUD is the whole point, and the price is that the briefing is produced by hand from
+a session that has them. If only one connector is present the command carries on
+with that source alone and records which one it used in `source`, so the HUD never
+claims coverage it didn't have.
+
+The HUD shows the briefing's age and marks it **stale after 36 hours**, so an old
+briefing announces itself rather than quietly passing as today's.
+
+## What leaves your machine
+
+Three of the five modules read nothing but your own computer. Two make network
+calls, and it's worth knowing which:
+
+
+| Module     | Where its data comes from                                                                    |
+| ---------- | -------------------------------------------------------------------------------------------- |
+| `day`      | The system clock, and `pmset` for the battery. Local.                                        |
+| `sessions` | The transcript files in `~/.claude/projects`. Local.                                         |
+| `todos`    | A JSON file another process writes. Local — the HUD itself talks to neither Slack nor Gmail. |
+| `usage`    | **A request to** `api.anthropic.com`**.**                                                    |
+| `git`      | `gh api` **calls to GitHub.**                                                                |
+
+
+`usage` sends a throwaway 1-token request to `/v1/messages` and reads the
+rate-limit *response headers* — that is where the percentages and reset times come
+from, so they are Anthropic's numbers rather than a guess. Your token is only read
+locally (the macOS keychain, then `~/.claude/.credentials.json`) and is never
+logged or included in an error message. Each reading is appended to
+`usage-history.jsonl` beside your settings, which is what the reset-window list is
+built from; nothing uploads it.
+
+Note that this probe **spends a little of the quota it is measuring**. It's cached
+for 60 seconds, so at most one request a minute while the module is on.
+
+`git` shells out to `gh`, which reads your contribution calendar, your recent
+events and your open PRs from GitHub. Nothing is read from your local repositories
+— the calendar is used precisely because it counts commits on branches that were
+never merged, which neither a local scan nor GitHub's commit search would show.
+
+Neither module runs at all while it is switched off, and both are off by default.
+
+## Configure it
+
+```bash
+notch                       # what's on, and every switch you have
+notch off                   # hide the panel (the app keeps running)
+notch on
+notch toggle
+
+notch delay 0               # open the moment the cursor touches the notch
+notch delay 600             # or make it wait 600ms (the default)
+
+notch module day off        # turn a module off
+notch module day on
+
+notch pin on                # hold the panel open
+notch pin off
+```
+
+Settings live in `~/Library/Application Support/bui-notch/notch.json`. A running
+app picks up changes within about five seconds, so you never need to restart it.
+
+## How it works
+
+Three crates:
+
+```
+crates/
+  notch-core/   settings, the modules, and the JSON payload the panel renders
+  notch/        the `notch` CLI, which only ever writes the settings file
+  notch-app/    the panel itself (Tauri v2) — window mechanics + the web UI
+```
+
+Each module is a `payload()` returning `available: false` with a reason rather than
+failing the whole document, so one broken integration costs one card.
+
+Two macOS details make it behave like a notch app rather than a floating window:
+the window level is raised to `NSStatusWindowLevel` so it draws over the menu bar
+instead of under it, and its collection behaviour marks it stationary and joinable
+on all Spaces.
+
+Some less obvious choices, each of which took a while to arrive at:
+
+- **The window never resizes.** A window resize can't be animated — every step is
+a discrete jump, and the webview relayouts on each one. So the window is fixed
+at the open size and CSS animates the black shape inside it, on the GPU.
+- **Hover is sampled, not evented.** WebKit's tracking areas are scoped to the key
+window, and this panel deliberately never takes focus, so `mouseenter` would
+only fire after you clicked it. A worker thread samples the cursor through
+CoreGraphics instead — fast near the top edge, slow elsewhere, because idle
+wake-ups are what cost battery.
+- **Clicks pass through except on the sliver.** Collapsed, the window covers a
+large transparent area; if it accepted clicks it would swallow menu-bar clicks.
+So it ignores the cursor until the cursor is actually over the sliver.
+- **Opening waits for the cursor to settle.** Crossing the notch on the way to the
+menu bar shouldn't pop the panel open — only stopping there should.
+
+
+
+## Develop
+
+```bash
+cargo run -p notch-app          # run the panel
+cargo run -p notch -- <cmd>     # run the CLI (note the `--`)
+cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
+cargo fmt --all
+npx prettier --write "crates/notch-app/ui/*.{html,js}"
+```
+
+`NOTCH_DEBUG=1` traces the panel's geometry and every open/close to stderr, which
+is the only way to see what the hover watcher is thinking.
+
+## Licence
+
+MIT
